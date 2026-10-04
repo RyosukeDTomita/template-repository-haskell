@@ -36,8 +36,7 @@
           _module.args.unstablePkgs = unstablePkgs;
           programs.pinact.enable = pkgs.lib.mkForce false;
         };
-        # cabal パッケージのソースは Haskell 関連ファイルだけに限定する。
-        # README/docs/flake 等を変えてもビルドのハッシュが変わらないようにするため。
+        # README/docs/flake 等を変えてもビルドのハッシュが変わらないようにする。
         projectSrc = pkgs.lib.fileset.toSource {
           root = ./.;
           fileset = pkgs.lib.fileset.unions [
@@ -57,19 +56,17 @@
         # `nix flake check` で treefmt の整形漏れを検出する。
         checks.formatting = treefmtCheckEval.config.build.check self;
 
-        # `nix build` で実行バイナリを生成する(開発・動作確認用、nix store に動的リンク)。
+        # `nix build` で実行バイナリを生成する(nix store に動的リンクする開発用)。
+
         # callCabal2nix はビルド時に test-suite も実行する。
         packages.default = myapp;
 
-        # `nix build .#static` で配布用の musl 静的バイナリを生成する。
-        # 初回はキャッシュが無くソースビルドになるため時間がかかる。
+        # musl静的バイナリ
         packages.static = pkgs.haskell.lib.justStaticExecutables (
           pkgs.pkgsStatic.haskell.packages.ghc9122.callCabal2nix "myapp" projectSrc { }
         );
 
-        # shellFor は myapp の全コンポーネント(library/executable/test-suite)の依存を
-        # 入れた GHC を用意する。nix build と同じ store パスのパッケージを使うため、
-        # cabal が Hackage から別に取得することはない。
+        # cabalはHackageではなく、nixからパッケージを取得する
         devShells.default = hpkgs.shellFor {
           packages = _: [ myapp ];
           nativeBuildInputs = [

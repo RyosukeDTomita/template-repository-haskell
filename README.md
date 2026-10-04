@@ -21,17 +21,16 @@ direnv allow
 ### run locally
 
 ```shell
+runghc -isrc -iapp app/Main.hs Haskell
+```
+
+```shell
 cabal run myapp
 ```
 
 ```shell
 # 引数を渡したい場合
 cabal run myapp -- <ARG>
-```
-
-```shell
-# デバッグなら runghc の方が気楽
-runghc -isrc -iapp app/Main.hs Haskell
 ```
 
 ### test
@@ -43,17 +42,24 @@ runghc -isrc test/Spec.hs
 ### build
 
 ```shell
-# nix store に動的リンクしたバイナリ(test-suite も実行される)
+# nix store に動的リンクしたバイナリ
 nix build
-# 配布用の musl 静的バイナリ(初回はソースビルドになり時間がかかる)
+# musl 静的バイナリは初回はソースビルドになり遅いが、Nixユーザ以外に配れるバイナリを作れる。
 nix build .#static
 ```
 
 ### formatter
 
-treefmt(ormolu / nixfmt / mdformat)でまとめて整形する。
-GitHub Actionsのworkflowも対象で、pinactが`uses`をコミットハッシュに固定し、ghalintがセキュリティポリシーを検査する。
-pinactはGitHub APIを使うため、ネットワークの無い`nix flake check`ではpinactを除外している。
+- treefmt
+  - ormolu
+  - nixfmt
+  - mdformat
+  - ghalint
+  - pinact
+
+
+> [!NOTE]
+> pinactはGitHub APIを使うため、ネットワークの無い`nix flake check`ではpinactを除外している。
 
 ```shell
 nix fmt
@@ -63,12 +69,12 @@ nix flake check
 
 ### ライブラリの追加
 
-`myapp.cabal` の `build-depends` に足して `nix develop` に入り直す(direnv なら自動)。
-devShell は `hpkgs.shellFor` で `.cabal` から依存を読むので、`flake.nix` を触る必要はない。
-パッケージは nixpkgs(`nixos-25.05`)に入っている版が使われ、Hackage からは取得しない。
-`cabal.project` の `active-repositories: :none` で cabal からも Hackage を参照させない。
-シェルに入り直す前に `cabal build` すると `unknown package` で止まる(ダウンロードはしない)。
-import を変えたら `.ghci` も同期する(`CLAUDE.md` 参照)。
+- `myapp.cabal` の `build-depends` に足す。
+  - `direnv`不使用の場合には再度`nix develop`する
+  - `flake.nix`のdevShellは`hpkgs.shellFor`で`.cabal` から依存を読む
+- パッケージはnixpkgs経由で取得し、Hackageからは取得しない。
+  - `cabal.project`にもHackageを参照させないように設定済み
+- .ghciでデフォルトでimportするライブラリは`/sync-ghci`SKILLSで行う。
 
 ### GHC のバージョンを上げる
 
