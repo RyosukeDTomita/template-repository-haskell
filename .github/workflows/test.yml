@@ -1,0 +1,40 @@
+name: test
+
+# push(main)では Haskell のビルド/テストに関係するファイルが変わった時だけ走らせる。
+# pull_request では paths で絞らず必ず走らせる。これは OpenSSF Scorecard の
+# CI-Tests が「マージ済み PR に CI テストの実行があるか」を見るため。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "app/**"
+      - "test/**"
+      - "*.cabal"
+      - "flake.nix"
+      - "flake.lock"
+      - "treefmt.nix"
+      - ".github/workflows/test.yml"
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Run hspec tests
+        run: nix develop --command runghc -isrc test/Spec.hs
+      - name: Check formatting
+        run: nix flake check
