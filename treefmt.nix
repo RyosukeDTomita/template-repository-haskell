@@ -1,24 +1,29 @@
-{ pkgs, unstablePkgs, ... }:
+{
+  pkgs,
+  unstablePkgs,
+  ghcVersion,
+  ...
+}:
 {
   projectRootFile = "flake.nix";
 
-  # nix ファイルの整形。nixfmt-tree と同じ RFC 166 スタイルに揃える。
+  # nixファイルの整形。nixfmt-treeと同じRFC 166スタイルに揃える。
   programs.nixfmt.enable = true;
   programs.nixfmt.package = pkgs.nixfmt-rfc-style;
 
-  # mdformat 本体は thematic break を変換するため、`---` のまま出力する
-  # mdformat-simple-breaks プラグインを使う。programs.mdformat は package
-  # 上書きを尊重しないため settings.formatter で直接指定する。
-  # .claude/ 配下の SKILL.md は YAML frontmatter を持ち、mdformat が壊すので除外する。
+  # mdformat本体はthematic breakを変換するため、`---`のまま出力する
+  # mdformat-simple-breaksプラグインを使う。programs.mdformatはpackage
+  # 上書きを尊重しないためsettings.formatterで直接指定する。
+  # .claude/配下のSKILL.mdはYAML frontmatterを持ち、mdformatが壊すので除外する。
   settings.formatter.mdformat = {
     command = "${pkgs.mdformat.withPlugins (ps: with ps; [ ps.mdformat-simple-breaks ])}/bin/mdformat";
     includes = [ "*.md" ];
     excludes = [ ".claude/**" ];
   };
 
-  # flake.nix の hpkgs と同じ GHC のバージョンに合わせる。
+  # flake.nixのghcVersionと同じGHCのバージョンに合わせる。
   programs.ormolu.enable = true;
-  programs.ormolu.package = pkgs.haskell.packages.ghc9122.ormolu;
+  programs.ormolu.package = pkgs.haskell.packages.${ghcVersion}.ormolu;
 
   # treefmt controls mode/idempotence itself; pass only parser options.
   settings.formatter.ormolu.options = [
@@ -26,16 +31,18 @@
     "-XImportQualifiedPost"
   ];
 
-  # GitHub Actions の uses をコミットハッシュに固定する。
-  # --update はバージョンを勝手に上げるため無効にし、未固定の uses の固定だけ行う。
+  # ormoluの整形後の内容を検査するようpriorityで後に回す。
+  programs.hlint.enable = true;
+  programs.hlint.package = pkgs.haskell.packages.${ghcVersion}.hlint;
+  settings.formatter.hlint.priority = 1;
+
+  # GitHub Actionsのusesをコミットハッシュに固定する。
+  # --updateはバージョンを勝手に上げるため無効にし、未固定のusesの固定だけ行う。
   programs.pinact.enable = true;
   programs.pinact.package = unstablePkgs.pinact;
   programs.pinact.update = false;
 
-  # GitHub Actions のセキュリティ lint(整形はしない)。
-  # ghalint run はファイル引数を取らず .github/workflows を自分で走査するため、
-  # treefmt が渡す引数は捨てる。
-  # pinact が固定した後の内容を検査するよう priority で後に回す。
+  # pinactが固定した後の内容を検査するようpriorityで後に回す。
   settings.formatter.ghalint = {
     priority = 1;
     command = "${pkgs.writeShellScript "ghalint-run" ''exec ${unstablePkgs.ghalint}/bin/ghalint run''}";

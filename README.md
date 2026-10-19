@@ -4,7 +4,7 @@
 
 ## ABOUT
 
-Nix flake ベースの Haskell プロジェクトテンプレート。
+Nix flakeベースのHaskellプロジェクトテンプレート。
 
 ---
 
@@ -14,9 +14,13 @@ Nix flake ベースの Haskell プロジェクトテンプレート。
 
 ```shell
 nix develop
-# direnv を使う場合
+# direnvを使う場合
 direnv allow
 ```
+
+> [!NOTE]
+> devShellに含まれるtricorderはhaskell.nixでビルドされるため、キャッシュ(`cache.iog.io` / `tweag-tricorder.cachix.org`)が使えないとGHCからのソースビルドになる。
+> 初回の`nix develop`で`flake.nix`の`nixConfig`を受け入れるか、`nix.conf`に`extra-substituters` / `extra-trusted-public-keys`を追加しておく。
 
 ### run locally
 
@@ -37,14 +41,16 @@ cabal run myapp -- <ARG>
 
 ```shell
 runghc -isrc test/Spec.hs
+# nix上でビルドしてtest-suiteを実行する(CIと同じ)
+nix flake check
 ```
 
 ### build
 
 ```shell
-# nix store に動的リンクしたバイナリ
+# nix storeに動的リンクしたバイナリ
 nix build
-# musl 静的バイナリは初回はソースビルドになり遅いが、Nixユーザ以外に配れるバイナリを作れる。
+# musl静的バイナリは初回はソースビルドになり遅いが、Nixユーザ以外に配れるバイナリを作れる。
 nix build .#static
 ```
 
@@ -52,6 +58,7 @@ nix build .#static
 
 - treefmt
   - ormolu
+  - hlint(lintのみ。指摘があると失敗する)
   - nixfmt
   - mdformat
   - ghalint
@@ -62,19 +69,43 @@ nix build .#static
 
 ```shell
 nix fmt
-# 整形漏れのチェック(CI でも実行)
+# ビルド・テスト・整形漏れ・hlint・cabal checkのチェック(CIでも実行)
 nix flake check
+```
+
+### tricorder
+
+ファイル変更を監視し、lib/exe/testを継続的にビルド・テストする(devShellに同梱)。設定は`.tricorder.yaml`。
+
+```shell
+tricorder ui
+# 非対話で確認する場合
+tricorder start
+tricorder status
+tricorder test suites
+```
+
+> [!NOTE]
+> `.ghci`(ユーザーの`~/.ghci`があればそれも)は対話用のimportを含み、`cabal repl`で読み込むと失敗することがあるため、`.tricorder.yaml`で`-ignore-dot-ghci`を指定している。
+
+### hoogle
+
+devShellには依存ライブラリのドキュメント込みのHoogleが入っている。
+
+```shell
+hoogle server --local
 ```
 
 ### ライブラリの追加
 
-- `myapp.cabal` の `build-depends` に足す。
+- `myapp.cabal`の`build-depends`に足す。
   - `direnv`不使用の場合には再度`nix develop`する
-  - `flake.nix`のdevShellは`hpkgs.shellFor`で`.cabal` から依存を読む
+  - `flake.nix`のdevShellは`hpkgs.shellFor`で`.cabal`から依存を読む
 - パッケージはnixpkgs経由で取得し、Hackageからは取得しない。
   - `cabal.project`にもHackageを参照させないように設定済み
 - .ghciでデフォルトでimportするライブラリは`/sync-ghci`SKILLSで行う。
 
-### GHC のバージョンを上げる
+### GHCのバージョンを上げる
 
-`flake.nix` の `hpkgs` / `packages.static` と `treefmt.nix` の ormolu の `ghc9122` を揃えて変更する。
+`flake.nix`の`ghcVersion`を変更する(`hpkgs` / `packages.static` / `treefmt.nix`のormolu・hlintはここを参照する)。
+`myapp.cabal`の`base`の下限も合わせて変更する。
