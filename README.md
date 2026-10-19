@@ -57,7 +57,6 @@ nix build .#static
   - ghalint
   - pinact
 
-
 > [!NOTE]
 > pinactはGitHub APIを使うため、ネットワークの無い`nix flake check`ではpinactを除外している。
 
